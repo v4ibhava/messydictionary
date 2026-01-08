@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #000000;
+  --color-card: rgba(255, 255, 255, 0.06);
+  --color-accent: #D1855C; 
+  --color-text: #ffffff;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
