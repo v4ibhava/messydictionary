@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import axios from "axios";
 import bookImg from "../assets/book.png";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function AddPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [word, setWord] = useState("");
@@ -16,7 +18,7 @@ export default function AddPage() {
     e.preventDefault();
     if (!word.trim() || !meaning.trim()) return;
     try {
-      await axios.post("http://localhost:3000/add", { word, meaning, language });
+      await axios.post(`${API_URL}/add`, { word, meaning, language });
       setWord("");
       setMeaning("");
       setLanguage("English");
