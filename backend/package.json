@@ -17,6 +17,7 @@
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "mongoose": "^9.1.2",
-    "tailwindcss": "^4.1.18"
+    "tailwindcss": "^4.1.18",
+    "dotenv": "^16.4.5",
   }
 }
