@@ -3,49 +3,81 @@ import axios from "axios";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
+// ✅ API base URL from env
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function SearchPage() {
   const [word, setWord] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false); // ✅
   const navigate = useNavigate();
 
-  // 🔍 Fetch suggestions
+  // 🔍 Fetch suggestions (debounced + safe)
   useEffect(() => {
+    const controller = new AbortController();
+
     const timeout = setTimeout(async () => {
-      if (word.trim()) {
-        const res = await axios.get(`http://localhost:3000/suggest?q=${word}`);
-        setSuggestions(res.data);
-      } else {
+      if (!word.trim()) {
         setSuggestions([]);
+        return;
+      }
+
+      try {
+        const res = await axios.get(
+          `${API_URL}/suggest?q=${encodeURIComponent(word)}`,
+          { signal: controller.signal }
+        );
+        setSuggestions(res.data);
+      } catch (err) {
+        if (err.name !== "CanceledError") {
+          console.error("Suggestion error:", err);
+        }
       }
     }, 300);
-    return () => clearTimeout(timeout);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
   }, [word]);
 
+  // 🔎 Search definition
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!word.trim()) return;
-    const res = await axios.get(`http://localhost:3000/define/${word}`);
-    setResult(res.data);
-    setSuggestions([]);
+
+    try {
+      setLoading(true);
+      const res = await axios.get(
+        `${API_URL}/define/${encodeURIComponent(word)}`
+      );
+      setResult(res.data);
+      setSuggestions([]);
+    } catch (err) {
+      setResult({
+        error: err?.response?.data?.error || "Word not found",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ✨ Floating + Draggable Motion Setup
+  // ✨ Floating + Draggable Motion
   const y = useMotionValue(0);
   const rotate = useTransform(y, [-100, 100], [-10, 10]);
 
   useEffect(() => {
     const controls = animate(y, [0, -8, 8, 0], {
+      repeat: Infinity,
+      duration: 6,
     });
     return controls.stop;
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center  from-[#0e0e0e] via-[#1a1a1a] to-[#0e0e0e] text-white p-4 relative overflow-hidden">
-      {/* Subtle glossy overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.05),transparent_60%)] pointer-events-none" />
-
-      {/* 🧠 Title with draggable “MY” */}
+    <div className="min-h-screen flex flex-col items-center justify-center text-white p-4 relative overflow-hidden">
+      {/* 🧠 Title */}
       <h1 className="text-5xl sm:text-6xl font-extrabold mb-10 text-center select-none">
         <motion.span
           style={{ y, rotate }}
@@ -54,44 +86,37 @@ export default function SearchPage() {
           dragConstraints={{ top: 0, bottom: 150 }}
           onDragEnd={(_, info) => {
             if (info.offset.y > 100) {
-              navigate("/add"); // 👈 navigate to Add page
+              navigate("/add");
             } else {
               animate(y, 0, { type: "spring", stiffness: 150, damping: 12 });
             }
           }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          className="inline-block text-[#D1855C] cursor-grab active:cursor-grabbing select-none"
+          className="inline-block text-[#D1855C] cursor-grab"
         >
           MY
         </motion.span>{" "}
-        <span className="text-white">Dictionary</span>
+        Dictionary
       </h1>
 
-      {/* 🔍 Search box */}
+      {/* 🔍 Search */}
       <form
         onSubmit={handleSearch}
-        className="relative w-full max-w-lg backdrop-blur-md bg-[rgba(255,255,255,0.05)] border border-[#D1855C]/40 rounded-full shadow-[0_0_25px_rgba(209,133,92,0.25)] px-5 py-4"
+        className="relative w-full max-w-lg rounded-full px-5 py-4"
       >
         <input
           type="text"
           value={word}
           onChange={(e) => setWord(e.target.value)}
           placeholder="Type a word..."
-          className="w-full bg-transparent text-lg text-white placeholder-gray-400 outline-none"
+          className="w-full bg-transparent text-lg outline-none"
         />
 
-        {/* ✨ Transparent Floating Suggestions */}
         {suggestions.length > 0 && (
-          <ul className="absolute top-full mt-2 w-full z-10 space-y-1">
+          <ul className="absolute top-full mt-2 w-full z-10">
             {suggestions.map((s, i) => (
               <motion.li
                 key={i}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="px-5 py-2 cursor-pointer text-white hover:text-[#D1855C] transition-all"
+                className="px-5 py-2 cursor-pointer hover:text-[#D1855C]"
                 onClick={() => {
                   setWord(s);
                   setSuggestions([]);
@@ -105,20 +130,18 @@ export default function SearchPage() {
       </form>
 
       {/* 📘 Result */}
-      {result && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-10 max-w-lg w-full backdrop-blur-md bg-[rgba(255,255,255,0.05)] border border-[#D1855C]/40 p-6 rounded-2xl text-center shadow-[0_0_30px_rgba(209,133,92,0.25)]"
-        >
+      {loading && <p className="mt-6 text-gray-400">Searching...</p>}
+
+      {result && !loading && (
+        <motion.div className="mt-10 max-w-lg w-full p-6 rounded-2xl text-center">
           {result.error ? (
             <p className="text-red-400">{result.error}</p>
           ) : (
             <>
-              <h2 className="text-2xl font-bold text-[#D1855C] mb-2 drop-shadow-[0_0_10px_#D1855C]">
+              <h2 className="text-2xl font-bold text-[#D1855C] mb-2">
                 {result.word}
               </h2>
-              <p className="text-gray-200 leading-relaxed">{result.meaning}</p>
+              <p className="text-gray-200">{result.meaning}</p>
             </>
           )}
         </motion.div>
