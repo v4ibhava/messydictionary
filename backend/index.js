@@ -1,15 +1,18 @@
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🧠 Connect to MongoDB
-await mongoose.connect("mongodb://127.0.0.1:27017/dictionary");
+//  Connect to MongoDB
+await mongoose.connect(process.env.MONGO_URI);
 
-// 📘 Schema & Model
+//  Schema & Model
 const wordSchema = new mongoose.Schema({
   word: { type: String, required: true, unique: true },
   meaning: { type: String, required: true },
@@ -19,7 +22,7 @@ const wordSchema = new mongoose.Schema({
 
 const Word = mongoose.model("Word", wordSchema);
 
-// ➕ Add a new word
+//  Add a new word
 app.post("/add", async (req, res) => {
   try {
     const { word, meaning, language } = req.body;
@@ -31,13 +34,15 @@ app.post("/add", async (req, res) => {
   }
 });
 
-// 🔍 Get a word definition
+//  Get a word definition
 app.get("/define/:word", async (req, res) => {
   const word = await Word.findOne({ word: req.params.word });
-  word ? res.json(word) : res.status(404).json({ error: "Word not found" });
+  word
+    ? res.json(word)
+    : res.status(404).json({ error: "Word not found" });
 });
 
-// 💡 Suggest similar words
+//  Suggest similar words
 app.get("/suggest", async (req, res) => {
   const q = req.query.q;
   if (!q) return res.json([]);
@@ -48,5 +53,8 @@ app.get("/suggest", async (req, res) => {
   res.json(words.map((w) => w.word));
 });
 
-// 🚀 Run server
-app.listen(3000, () => console.log("✅ Server running on http://localhost:3000"));
+//  Run server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () =>
+  console.log(`✅ Server running on http://localhost:${PORT}`)
+);
