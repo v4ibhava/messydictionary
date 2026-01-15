@@ -76,18 +76,6 @@ export default function SearchPage() {
   const y = useMotionValue(0);
   const rotate = useTransform(y, [-100, 100], [-10, 10]);
 
-  onDragEnd={(_, info) => {
-  if (info.offset.y > 100) {
-    navigate("/add");
-  } else {
-    animate(y, 0, {
-      type: "spring",
-      stiffness: 180,
-      damping: 18,
-    });
-  }
-}}
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-white p-4 relative overflow-hidden">
       {/*  Title */}
