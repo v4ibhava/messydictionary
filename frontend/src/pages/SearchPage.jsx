@@ -3,23 +3,25 @@ import axios from "axios";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
-// ✅ API base URL from env
 const API_URL = import.meta.env.VITE_API_URL;
 
 export default function SearchPage() {
   const [word, setWord] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false); // ✅
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // 🔍 Fetch suggestions (debounced + safe)
+  // 🔍 Fetch suggestions (safe + debounced)
   useEffect(() => {
     const controller = new AbortController();
 
     const timeout = setTimeout(async () => {
+      // ✅ when input is empty → clear everything
       if (!word.trim()) {
         setSuggestions([]);
+        setResult(null);
+        setLoading(false);
         return;
       }
 
@@ -28,10 +30,13 @@ export default function SearchPage() {
           `${API_URL}/suggest?q=${encodeURIComponent(word)}`,
           { signal: controller.signal }
         );
-        setSuggestions(res.data);
+
+        const list = res.data?.suggestions || res.data || [];
+        setSuggestions(Array.isArray(list) ? list : []);
       } catch (err) {
         if (err.name !== "CanceledError") {
           console.error("Suggestion error:", err);
+          setSuggestions([]);
         }
       }
     }, 300);
@@ -42,18 +47,16 @@ export default function SearchPage() {
     };
   }, [word]);
 
-  // 🔎 Search definition
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!word.trim()) return;
+  // 🔎 Search definition (reusable)
+  const searchWord = async (searchTerm) => {
+    if (!searchTerm.trim()) return;
 
     try {
       setLoading(true);
       const res = await axios.get(
-        `${API_URL}/define/${encodeURIComponent(word)}`
+        `${API_URL}/define/${encodeURIComponent(searchTerm)}`
       );
       setResult(res.data);
-      setSuggestions([]);
     } catch (err) {
       setResult({
         error: err?.response?.data?.error || "Word not found",
@@ -61,6 +64,12 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setSuggestions([]);
+    searchWord(word);
   };
 
   // ✨ Floating + Draggable Motion
@@ -109,9 +118,14 @@ export default function SearchPage() {
           onChange={(e) => setWord(e.target.value)}
           placeholder="Type a word..."
           className="w-full bg-transparent text-lg outline-none"
+          onBlur={() => {
+            // ✅ mobile-friendly: hide suggestions on blur
+            setTimeout(() => setSuggestions([]), 150);
+          }}
         />
 
-        {suggestions.length > 0 && (
+        {/* ✅ autosuggestion click triggers search */}
+        {Array.isArray(suggestions) && suggestions.length > 0 && (
           <ul className="absolute top-full mt-2 w-full z-10">
             {suggestions.map((s, i) => (
               <motion.li
@@ -120,6 +134,7 @@ export default function SearchPage() {
                 onClick={() => {
                   setWord(s);
                   setSuggestions([]);
+                  searchWord(s); // ✅ acts as search hit
                 }}
               >
                 {s}
