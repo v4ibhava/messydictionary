@@ -12,12 +12,12 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // 🔍 Fetch suggestions (safe + debounced)
+  //  Fetch suggestions (safe + debounced)
   useEffect(() => {
     const controller = new AbortController();
 
     const timeout = setTimeout(async () => {
-      // ✅ when input is empty → clear everything
+      //  when input is empty → clear everything
       if (!word.trim()) {
         setSuggestions([]);
         setResult(null);
@@ -47,7 +47,7 @@ export default function SearchPage() {
     };
   }, [word]);
 
-  // 🔎 Search definition (reusable)
+  //  Search definition (reusable)
   const searchWord = async (searchTerm) => {
     if (!searchTerm.trim()) return;
 
@@ -72,21 +72,25 @@ export default function SearchPage() {
     searchWord(word);
   };
 
-  // ✨ Floating + Draggable Motion
+  //  Floating + Draggable Motion
   const y = useMotionValue(0);
   const rotate = useTransform(y, [-100, 100], [-10, 10]);
 
-  useEffect(() => {
-    const controls = animate(y, [0, -8, 8, 0], {
-      repeat: Infinity,
-      duration: 6,
+  onDragEnd={(_, info) => {
+  if (info.offset.y > 100) {
+    navigate("/add");
+  } else {
+    animate(y, 0, {
+      type: "spring",
+      stiffness: 180,
+      damping: 18,
     });
-    return controls.stop;
-  }, []);
+  }
+}}
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-white p-4 relative overflow-hidden">
-      {/* 🧠 Title */}
+      {/*  Title */}
       <h1 className="text-5xl sm:text-6xl font-extrabold mb-10 text-center select-none">
         <motion.span
           style={{ y, rotate }}
@@ -107,7 +111,7 @@ export default function SearchPage() {
         Dictionary
       </h1>
 
-      {/* 🔍 Search */}
+      {/*  Search */}
       <form
         onSubmit={handleSearch}
         className="relative w-full max-w-lg rounded-full px-5 py-4"
@@ -119,12 +123,12 @@ export default function SearchPage() {
           placeholder="Type a word..."
           className="w-full bg-transparent text-lg outline-none"
           onBlur={() => {
-            // ✅ mobile-friendly: hide suggestions on blur
+            //  mobile-friendly: hide suggestions on blur
             setTimeout(() => setSuggestions([]), 150);
           }}
         />
 
-        {/* ✅ autosuggestion click triggers search */}
+        {/*  autosuggestion click triggers search */}
         {Array.isArray(suggestions) && suggestions.length > 0 && (
           <ul className="absolute top-full mt-2 w-full z-10">
             {suggestions.map((s, i) => (
@@ -134,7 +138,7 @@ export default function SearchPage() {
                 onClick={() => {
                   setWord(s);
                   setSuggestions([]);
-                  searchWord(s); // ✅ acts as search hit
+                  searchWord(s); //  acts as search hit
                 }}
               >
                 {s}
@@ -144,7 +148,7 @@ export default function SearchPage() {
         )}
       </form>
 
-      {/* 📘 Result */}
+      {/*  Result */}
       {loading && <p className="mt-6 text-gray-400">Searching...</p>}
 
       {result && !loading && (
