@@ -7,6 +7,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<SearchPage />} />
       <Route path="/add" element={<AddPage />} />
+      <Route path="/word/:word" element={<SearchPage />} />
     </Routes>
   );
 }

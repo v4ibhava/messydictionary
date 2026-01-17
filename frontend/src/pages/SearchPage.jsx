@@ -1,27 +1,31 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 export default function SearchPage() {
-  const [word, setWord] = useState("");
+  const navigate = useNavigate();
+  const { word: routeWord } = useParams();
+
+  const [word, setWord] = useState(routeWord || "");
   const [suggestions, setSuggestions] = useState([]);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const [activeIndex, setActiveIndex] = useState(-1);
 
-  //  Fetch suggestions (safe + debounced)
+  const listRef = useRef([]);
+
+  /* -------------------- Autosuggest (debounced + abort) -------------------- */
   useEffect(() => {
     const controller = new AbortController();
 
     const timeout = setTimeout(async () => {
-      //  when input is empty → clear everything
       if (!word.trim()) {
         setSuggestions([]);
         setResult(null);
-        setLoading(false);
+        setActiveIndex(-1);
         return;
       }
 
@@ -31,11 +35,10 @@ export default function SearchPage() {
           { signal: controller.signal }
         );
 
-        const list = res.data?.suggestions || res.data || [];
-        setSuggestions(Array.isArray(list) ? list : []);
+        setSuggestions(Array.isArray(res.data) ? res.data : []);
+        setActiveIndex(-1);
       } catch (err) {
         if (err.name !== "CanceledError") {
-          console.error("Suggestion error:", err);
           setSuggestions([]);
         }
       }
@@ -47,15 +50,29 @@ export default function SearchPage() {
     };
   }, [word]);
 
-  //  Search definition (reusable)
-  const searchWord = async (searchTerm) => {
+  /* -------------------- SEO: load word from URL -------------------- */
+  useEffect(() => {
+    if (routeWord) {
+      searchWord(routeWord, false);
+    }
+  }, [routeWord]);
+
+  /* -------------------- Search Logic -------------------- */
+  const searchWord = async (searchTerm, pushRoute = true) => {
     if (!searchTerm.trim()) return;
 
     try {
       setLoading(true);
+      setResult(null);
+
+      if (pushRoute) {
+        navigate(`/word/${encodeURIComponent(searchTerm.toLowerCase())}`);
+      }
+
       const res = await axios.get(
         `${API_URL}/define/${encodeURIComponent(searchTerm)}`
       );
+
       setResult(res.data);
     } catch (err) {
       setResult({
@@ -66,19 +83,43 @@ export default function SearchPage() {
     }
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setSuggestions([]);
-    searchWord(word);
+  /* -------------------- Keyboard Navigation -------------------- */
+  const handleKeyDown = (e) => {
+    if (!suggestions.length) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % suggestions.length);
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) =>
+        i <= 0 ? suggestions.length - 1 : i - 1
+      );
+    }
+
+    if (e.key === "Enter" && activeIndex >= 0) {
+      e.preventDefault();
+      const selected = suggestions[activeIndex];
+      setWord(selected);
+      setSuggestions([]);
+      searchWord(selected);
+    }
+
+    if (e.key === "Escape") {
+      setSuggestions([]);
+      setActiveIndex(-1);
+    }
   };
 
-  //  Floating + Draggable Motion
+  /* -------------------- Motion (UNCHANGED) -------------------- */
   const y = useMotionValue(0);
   const rotate = useTransform(y, [-100, 100], [-10, 10]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-white p-4 relative overflow-hidden">
-      {/*  Title */}
+      {/* Title (UNCHANGED) */}
       <h1 className="text-5xl sm:text-6xl font-extrabold mb-10 text-center select-none">
         <motion.span
           style={{ y, rotate }}
@@ -99,34 +140,41 @@ export default function SearchPage() {
         Dictionary
       </h1>
 
-      {/*  Search */}
+      {/* Search */}
       <form
-        onSubmit={handleSearch}
+        onSubmit={(e) => {
+          e.preventDefault();
+          setSuggestions([]);
+          searchWord(word);
+        }}
         className="relative w-full max-w-lg rounded-full px-5 py-4"
       >
         <input
           type="text"
           value={word}
           onChange={(e) => setWord(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Type a word..."
           className="w-full bg-transparent text-lg outline-none"
-          onBlur={() => {
-            //  mobile-friendly: hide suggestions on blur
-            setTimeout(() => setSuggestions([]), 150);
-          }}
+          onBlur={() => setTimeout(() => setSuggestions([]), 150)}
         />
 
-        {/*  autosuggestion click triggers search */}
-        {Array.isArray(suggestions) && suggestions.length > 0 && (
+        {/* Suggestions */}
+        {suggestions.length > 0 && (
           <ul className="absolute top-full mt-2 w-full z-10">
             {suggestions.map((s, i) => (
               <motion.li
-                key={i}
-                className="px-5 py-2 cursor-pointer hover:text-[#D1855C]"
-                onClick={() => {
+                key={s}
+                ref={(el) => (listRef.current[i] = el)}
+                className={`px-5 py-2 cursor-pointer ${
+                  i === activeIndex
+                    ? "text-[#D1855C]"
+                    : "hover:text-[#D1855C]"
+                }`}
+                onMouseDown={() => {
                   setWord(s);
                   setSuggestions([]);
-                  searchWord(s); //  acts as search hit
+                  searchWord(s);
                 }}
               >
                 {s}
@@ -136,9 +184,15 @@ export default function SearchPage() {
         )}
       </form>
 
-      {/*  Result */}
-      {loading && <p className="mt-6 text-gray-400">Searching...</p>}
+      {/* Loading Skeleton */}
+      {loading && (
+        <div className="mt-10 max-w-lg w-full p-6 rounded-2xl animate-pulse">
+          <div className="h-6 bg-gray-700 rounded mb-4"></div>
+          <div className="h-4 bg-gray-700 rounded w-5/6 mx-auto"></div>
+        </div>
+      )}
 
+      {/* Result */}
       {result && !loading && (
         <motion.div className="mt-10 max-w-lg w-full p-6 rounded-2xl text-center">
           {result.error ? (
