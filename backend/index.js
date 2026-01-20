@@ -13,40 +13,44 @@ app.use(cors());
 app.use(express.json());
 app.use(compression());
 
-// ---------- MongoDB Connection (Render-safe) ----------
+// ---------- MongoDB Connection ----------
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected"))
-  .catch(console.error);
+  .catch(err => console.error("MongoDB error:", err));
 
 // ---------- Schema & Model ----------
-const wordSchema = new mongoose.Schema({
-  word: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-    trim: true
+const wordSchema = new mongoose.Schema(
+  {
+    word: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true
+    },
+    meaning: {
+      type: String,
+      required: true
+    },
+    language: {
+      type: String,
+      default: "unknown"
+    },
+    addedBy: {
+      type: String,
+      default: "anonymous"
+    }
   },
-  meaning: {
-    type: String,
-    required: true
-  },
-  language: {
-    type: String,
-    default: "unknown"
-  },
-  addedBy: {
-    type: String,
-    default: "anonymous"
-  }
-});
+  { timestamps: true }
+);
 
 const Word = mongoose.model("Word", wordSchema);
 
 // ---------- Health Check ----------
 app.get("/", (req, res) => {
-  res.send("API running");
+  res.status(200).send("API running");
 });
 
 // ---------- Add Word ----------
@@ -55,20 +59,32 @@ app.post("/add", async (req, res) => {
     const { word, meaning, language } = req.body;
 
     if (!word || !meaning) {
-      return res.status(400).json({ error: "Word and meaning required" });
+      return res.status(400).json({
+        error: "Word and meaning required"
+      });
     }
 
     const exists = await Word.findOne({ word: word.toLowerCase() });
     if (exists) {
-      return res.status(409).json({ error: "Word already exists" });
+      return res.status(409).json({
+        error: "Word already exists"
+      });
     }
 
-    const newWord = new Word({ word, meaning, language });
-    await newWord.save();
+    const newWord = await Word.create({
+      word,
+      meaning,
+      language
+    });
 
-    res.json({ message: "Word added!", word: newWord });
+    res.status(201).json({
+      message: "Word added",
+      word: newWord
+    });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({
+      error: err.message
+    });
   }
 });
 
@@ -78,59 +94,123 @@ app.put("/update/:word", async (req, res) => {
     const updated = await Word.findOneAndUpdate(
       { word: req.params.word.toLowerCase() },
       req.body,
-      { new: true }
+      { new: true, runValidators: true }
     );
 
     if (!updated) {
-      return res.status(404).json({ error: "Word not found" });
+      return res.status(404).json({
+        error: "Word not found"
+      });
     }
 
-    res.json({ message: "Word updated", word: updated });
+    res.json({
+      message: "Word updated",
+      word: updated
+    });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({
+      error: err.message
+    });
   }
 });
 
 // ---------- Delete Word ----------
 app.delete("/delete/:word", async (req, res) => {
-  const deleted = await Word.findOneAndDelete({
-    word: req.params.word.toLowerCase()
-  });
+  try {
+    const deleted = await Word.findOneAndDelete({
+      word: req.params.word.toLowerCase()
+    });
 
-  deleted
-    ? res.json({ message: "Word deleted" })
-    : res.status(404).json({ error: "Word not found" });
+    if (!deleted) {
+      return res.status(404).json({
+        error: "Word not found"
+      });
+    }
+
+    res.json({
+      message: "Word deleted"
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
+  }
 });
 
-// ---------- Get Definition ----------
+// ---------- Get Word (Primary Route) ----------
+app.get("/word/:word", async (req, res) => {
+  try {
+    const entry = await Word.findOne({
+      word: req.params.word.toLowerCase()
+    }).lean();
+
+    if (!entry) {
+      return res.status(200).json({
+        found: false,
+        message: "Word not found"
+      });
+    }
+
+    res.json({
+      found: true,
+      ...entry
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
+
+// ---------- HEAD handler (Stops crawler spam) ----------
+app.head("/word/:word", (req, res) => {
+  res.status(200).end();
+});
+
+// ---------- Legacy Support ----------
 app.get("/define/:word", async (req, res) => {
-  const word = await Word.findOne({
-    word: req.params.word.toLowerCase()
-  });
+  try {
+    const entry = await Word.findOne({
+      word: req.params.word.toLowerCase()
+    });
 
-  word
-    ? res.json(word)
-    : res.status(404).json({ error: "Word not found" });
+    entry
+      ? res.json(entry)
+      : res.status(404).json({ error: "Word not found" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// ---------- Auto Suggest (Smooth & Fast) ----------
+// ---------- Auto Suggest ----------
 app.get("/suggest", async (req, res) => {
-  const q = req.query.q?.trim().toLowerCase();
+  try {
+    const q = req.query.q?.trim().toLowerCase();
 
-  // avoid useless queries
-  if (!q || q.length < 2) return res.json([]);
+    if (!q || q.length < 2) return res.json([]);
 
-  const words = await Word.find(
-    { word: { $regex: `^${q}` } },
-    "word"
-  )
-    .limit(5)
-    .lean();
+    const words = await Word.find(
+      { word: { $regex: `^${q}` } },
+      "word"
+    )
+      .limit(5)
+      .lean();
 
-  res.json(words.map(w => w.word));
+    res.json(words.map(w => w.word));
+  } catch {
+    res.json([]);
+  }
 });
 
-// ---------- Run Server ----------
+// ---------- Catch-all (SEO + AdSense Safe) ----------
+app.use((req, res) => {
+  res.status(200).json({
+    message: "Route not found",
+    path: req.originalUrl
+  });
+});
+
+// ---------- Start Server ----------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
