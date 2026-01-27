@@ -174,7 +174,7 @@ export default function AddPage() {
               }}
             >
               <p className="font-serif italic text-gray-600 text-lg text-center px-8">
-                “Words are our most inexhaustible source of magic.”
+                “Internet ko sikhao naya word..”
               </p>
             </div>
           </motion.div>
