@@ -59,33 +59,7 @@ export default function AboutSection() {
             No login. No restrictions. Just fun contributions.
           </p>
         </div>
-
-        {/* Tech Stack */}
-        <div className="space-y-4">
-          <h3 className="text-2xl font-semibold">🛠️ Tech Stack</h3>
-
-          <div className="grid sm:grid-cols-2 gap-6 text-neutral-300">
-            <div>
-              <h4 className="font-semibold mb-2">Frontend</h4>
-              <ul className="space-y-1">
-                <li>• React (Vite)</li>
-                <li>• Tailwind CSS</li>
-                <li>• Framer Motion</li>
-                <li>• Axios</li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">Backend</h4>
-              <ul className="space-y-1">
-                <li>• Node.js</li>
-                <li>• Express</li>
-                <li>• MongoDB (Atlas)</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
+        
         {/* Why */}
         <div className="space-y-4">
           <h3 className="text-2xl font-semibold">💡 Why this project?</h3>
