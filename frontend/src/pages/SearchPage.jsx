@@ -123,7 +123,7 @@ export default function SearchPage() {
   <div className="relative text-white">
     
     {/* ================= HERO / SEARCH SECTION ================= */}
-    <section className="min-h-screen flex flex-col items-center justify-center p-4">
+    <section className="relative min-h-screen flex flex-col items-center justify-center p-4">
       
       {/* Title */}
       <h1 className="text-5xl sm:text-6xl font-extrabold mb-10 text-center select-none">
