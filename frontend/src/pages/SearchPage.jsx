@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
+import AboutSection from "./AboutSection";
+import ScrollDownIndicator from "../components/ScrollDownIndicator"
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -76,7 +78,7 @@ export default function SearchPage() {
       setResult(res.data);
     } catch (err) {
       setResult({
-        error: err?.response?.data?.error || "Word not found",
+        error: err?.response?.data?.error || 'Word not found — you can add it by dragging "MY"',
       });
     } finally {
       setLoading(false);
@@ -118,8 +120,12 @@ export default function SearchPage() {
   const rotate = useTransform(y, [-100, 100], [-10, 10]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-white p-4 relative overflow-hidden">
-      {/* Title (UNCHANGED) */}
+  <div className="relative text-white">
+    
+    {/* ================= HERO / SEARCH SECTION ================= */}
+    <section className="min-h-screen flex flex-col items-center justify-center p-4">
+      
+      {/* Title */}
       <h1 className="text-5xl sm:text-6xl font-extrabold mb-10 text-center select-none">
         <motion.span
           style={{ y, rotate }}
@@ -128,9 +134,9 @@ export default function SearchPage() {
           dragConstraints={{ top: 0, bottom: 150 }}
           onDragEnd={(_, info) => {
             if (info.offset.y > 100) {
-              navigate("/add");
+              navigate("/add")
             } else {
-              animate(y, 0, { type: "spring", stiffness: 150, damping: 12 });
+              animate(y, 0, { type: "spring", stiffness: 150, damping: 12 })
             }
           }}
           className="inline-block text-[#D1855C] cursor-grab"
@@ -143,9 +149,9 @@ export default function SearchPage() {
       {/* Search */}
       <form
         onSubmit={(e) => {
-          e.preventDefault();
-          setSuggestions([]);
-          searchWord(word);
+          e.preventDefault()
+          setSuggestions([])
+          searchWord(word)
         }}
         className="relative w-full max-w-lg rounded-full px-5 py-4"
       >
@@ -172,9 +178,9 @@ export default function SearchPage() {
                     : "hover:text-[#D1855C]"
                 }`}
                 onMouseDown={() => {
-                  setWord(s);
-                  setSuggestions([]);
-                  searchWord(s);
+                  setWord(s)
+                  setSuggestions([])
+                  searchWord(s)
                 }}
               >
                 {s}
@@ -184,7 +190,7 @@ export default function SearchPage() {
         )}
       </form>
 
-      {/* Loading Skeleton */}
+      {/* Loading */}
       {loading && (
         <div className="mt-10 max-w-lg w-full p-6 rounded-2xl animate-pulse">
           <div className="h-6 bg-gray-700 rounded mb-4"></div>
@@ -207,6 +213,13 @@ export default function SearchPage() {
           )}
         </motion.div>
       )}
-    </div>
-  );
+        <ScrollDownIndicator/>
+        
+    </section>
+
+    {/* ================= ABOUT SECTION ================= */}
+    <AboutSection />
+
+  </div>
+)
 }

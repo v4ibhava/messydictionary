@@ -1,13 +1,19 @@
-# Node.js backend
-/backend/node_modules/
-/backend/package-lock.json
-/backend/.env
+# Root-level ignores
+.DS_Store
+.env
+node_modules/
 
-# React frontend
+# Backend ignores
+/backend/node_modules/
+/backend/.env
+/backend/package-lock.json
+
+# Frontend ignores
 /frontend/node_modules/
-/frontend/dist/
 /frontend/.env
 /frontend/package-lock.json
+/frontend/dist/
+/frontend/.vercel/
 
 # Logs
 *.log
@@ -15,15 +21,24 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# OS-specific
+Thumbs.db
+ehthumbs.db
+Icon?
+Desktop.ini
+
 # IDE/editor settings
 .vscode/
 .idea/
 *.sublime-workspace
 *.sublime-project
 
-# OS-specific files
-.DS_Store
-Thumbs.db
+# Build output
+/dist/
+build/
+*.cache
 
-# Optional: Ignore build artifacts and cache
-/frontend/.vite/
+# Misc
+*.tgz
+*.zip
+*.tmp

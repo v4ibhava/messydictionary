@@ -86,11 +86,11 @@ export default function AddPage() {
                   disabled={!isOpen}
                   className="w-full bg-transparent border-b border-gray-400 text-gray-700 font-serif py-1 outline-none"
                 >
-                  <option>English</option>
+                  <option>Hinglish</option>
                   <option>Hindi</option>
-                  <option>French</option>
-                  <option>Spanish</option>
-                  <option>German</option>
+                  <option>English</option>
+                  <option>Marathi</option>
+                  <option>Other</option>
                 </select>
               </div>
 
